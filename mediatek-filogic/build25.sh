@@ -57,6 +57,17 @@ PACKAGES="$PACKAGES openssh-sftp-server"
 PACKAGES="$PACKAGES luci-i18n-filemanager-zh-cn"
 
 
+# 按设备单独配置插件
+if [ "$PROFILE" = "glinet_gl-mt3000" ]; then
+    # GL-MT3000 专用插件配置（参考 ufi103s_v01）
+    echo "Model:$PROFILE adding MT3000 specific packages"
+    PACKAGES="$PACKAGES luci-i18n-frpc-zh-cn"
+    PACKAGES="$PACKAGES wireguard-tools luci-proto-wireguard kmod-wireguard"
+    PACKAGES="$PACKAGES luci-i18n-nikki-zh-cn mihomo-meta kmod-nft-tproxy kmod-nft-nat"
+    PACKAGES="$PACKAGES luci-app-socat"
+    PACKAGES="$PACKAGES luci-proto-relay"
+fi
+
 # 第三方软件包 合并
 # ======== shell/apk-custom-packages.sh =======
 PACKAGES="$PACKAGES $CUSTOM_PACKAGES"

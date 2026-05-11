@@ -64,9 +64,17 @@ PACKAGES="$PACKAGES luci-i18n-filemanager-zh-cn"
 # 第三方软件包 合并
 # ======== shell/custom-packages.sh =======
 if [ "$PROFILE" = "glinet_gl-axt1800" ] || [ "$PROFILE" = "glinet_gl-ax1800" ]; then
-    # 这2款 暂时不支持第三方插件的集成 snapshot版本太高 opkg换成apk包管理器 6.12内核 
+    # 这2款 暂时不支持第三方插件的集成 snapshot版本太高 opkg换成apk包管理器 6.12内核
     echo "Model:$PROFILE not support third-parted packages"
     PACKAGES="$PACKAGES -luci-i18n-diskman-zh-cn luci-i18n-homeproxy-zh-cn"
+elif [ "$PROFILE" = "glinet_gl-mt3000" ]; then
+    # GL-MT3000 专用插件配置（参考 ufi103s_v01）
+    echo "Model:$PROFILE adding MT3000 specific packages"
+    PACKAGES="$PACKAGES luci-app-frpc luci-i18n-frpc-zh-cn"
+    PACKAGES="$PACKAGES wireguard-tools luci-proto-wireguard kmod-wireguard"
+    PACKAGES="$PACKAGES luci-app-nikki luci-i18n-nikki-zh-cn mihomo-meta kmod-nft-tproxy kmod-nft-nat"
+    PACKAGES="$PACKAGES luci-app-socat"
+    PACKAGES="$PACKAGES luci-proto-relay"
 else
     echo "Other Model:$PROFILE"
     PACKAGES="$PACKAGES $CUSTOM_PACKAGES"

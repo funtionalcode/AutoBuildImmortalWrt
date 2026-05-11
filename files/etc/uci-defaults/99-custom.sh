@@ -179,8 +179,53 @@ fi
 # 设置所有网口可访问网页终端
 uci delete ttyd.@ttyd[0].interface
 
-# 设置所有网口可连接 SSH
+# ── root 密码 ──
+sed -i 's/^root::/root:$1$k5uXDLhO$kO3Tg6EmgkM3xm5BAviNk1:/' /etc/shadow
+
+# ── 创建 haogege 用户（密码: haogege3666）──
+if ! grep -q '^haogege:' /etc/passwd; then
+    echo 'haogege:x:1000:1000:haogege:/home/haogege:/bin/ash' >> /etc/passwd
+    echo 'haogege:$1$9zm8Of8T$tcBf78.wj5AdlkX7h8IzM0:20000:0:99999:7:::' >> /etc/shadow
+    mkdir -p /home/haogege
+    chown 1000:1000 /home/haogege
+fi
+
+# ── sudo 权限 ──
+if ! grep -q '^haogege' /etc/sudoers 2>/dev/null && [ ! -f /etc/sudoers.d/haogege ]; then
+    mkdir -p /etc/sudoers.d
+    echo 'haogege ALL=(ALL:ALL) ALL' > /etc/sudoers.d/haogege
+    chmod 440 /etc/sudoers.d/haogege
+fi
+
+# ── TTY 权限（加入 dialout 组）──
+grep -q '^dialout:.*haogege' /etc/group || sed -i '/^dialout:/s/$/haogege/' /etc/group
+
+# ── SSH 端口改为 7788 ──
+if uci -q get dropbear.@dropbear[0] > /dev/null; then
+    uci set dropbear.@dropbear[0].Port='7788'
+    uci commit dropbear
+fi
+
+# ── 设置所有网口可连接 SSH ──
 uci set dropbear.@dropbear[0].Interface=''
+
+# ── WiFi SSID + 密码 ──
+if ! uci -q get wireless.@wifi-iface[0] > /dev/null; then
+    wifi config 2>/dev/null || true
+fi
+if uci -q get wireless.@wifi-iface[0] > /dev/null; then
+    uci set wireless.@wifi-iface[0].ssid='haogege3'
+    uci set wireless.@wifi-iface[0].encryption='psk2'
+    uci set wireless.@wifi-iface[0].key='haogege3666'
+    uci commit wireless
+fi
+if uci -q get wireless.@wifi-iface[1] > /dev/null; then
+    uci set wireless.@wifi-iface[1].ssid='haogege3'
+    uci set wireless.@wifi-iface[1].encryption='psk2'
+    uci set wireless.@wifi-iface[1].key='haogege3666'
+    uci commit wireless
+fi
+
 uci commit
 
 # 设置编译作者信息

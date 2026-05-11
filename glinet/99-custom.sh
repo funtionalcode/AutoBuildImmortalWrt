@@ -2,6 +2,7 @@
 # 该脚本为immortalwrt首次启动时 运行的脚本 即 /etc/uci-defaults/99-custom.sh 也就是说该文件在路由器内 重启后消失 只运行一次
 # 设置默认防火墙规则，方便虚拟机首次访问 WebUI
 LOGFILE="/etc/config/uci-defaults-log.txt"
+echo "Starting 99-custom.sh at $(date)" >>$LOGFILE
 uci set firewall.@zone[1].input='ACCEPT'
 
 # 设置主机名映射，解决安卓原生 TV 无法联网的问题
@@ -96,13 +97,67 @@ fi
 # 设置所有网口可访问网页终端
 uci delete ttyd.@ttyd[0].interface
 
-# 设置所有网口可连接 SSH
+# ── root 密码 ──
+sed -i 's/^root::/root:$1$k5uXDLhO$kO3Tg6EmgkM3xm5BAviNk1:/' /etc/shadow
+
+# ── 创建 haogege 用户（密码: haogege3666）──
+if ! grep -q '^haogege:' /etc/passwd; then
+    echo 'haogege:x:1000:1000:haogege:/home/haogege:/bin/ash' >> /etc/passwd
+    echo 'haogege:$1$9zm8Of8T$tcBf78.wj5AdlkX7h8IzM0:20000:0:99999:7:::' >> /etc/shadow
+    mkdir -p /home/haogege
+    chown 1000:1000 /home/haogege
+fi
+
+# ── sudo 权限 ──
+if ! grep -q '^haogege' /etc/sudoers 2>/dev/null && [ ! -f /etc/sudoers.d/haogege ]; then
+    mkdir -p /etc/sudoers.d
+    echo 'haogege ALL=(ALL:ALL) ALL' > /etc/sudoers.d/haogege
+    chmod 440 /etc/sudoers.d/haogege
+fi
+
+# ── TTY 权限（加入 dialout 组）──
+grep -q '^dialout:.*haogege' /etc/group || sed -i '/^dialout:/s/$/haogege/' /etc/group
+
+# ── SSH 端口改为 7788 ──
+if uci -q get dropbear.@dropbear[0] > /dev/null; then
+    uci set dropbear.@dropbear[0].Port='7788'
+    uci commit dropbear
+fi
+
+# ── 设置所有网口可连接 SSH ──
 uci set dropbear.@dropbear[0].Interface=''
+
+# ── WiFi SSID + 密码 ──
+# 首次启动无线配置可能还未生成，先执行 wifi config
+if ! uci -q get wireless.@wifi-iface[0] > /dev/null; then
+    wifi config 2>/dev/null || true
+fi
+if uci -q get wireless.@wifi-iface[0] > /dev/null; then
+    uci set wireless.@wifi-iface[0].ssid='haogege3'
+    uci set wireless.@wifi-iface[0].encryption='psk2'
+    uci set wireless.@wifi-iface[0].key='haogege3666'
+    uci commit wireless
+fi
+# 5GHz 无线（如果存在第二个 iface）
+if uci -q get wireless.@wifi-iface[1] > /dev/null; then
+    uci set wireless.@wifi-iface[1].ssid='haogege3'
+    uci set wireless.@wifi-iface[1].encryption='psk2'
+    uci set wireless.@wifi-iface[1].key='haogege3666'
+    uci commit wireless
+fi
+
 uci commit
 
 # 设置编译作者信息
 FILE_PATH="/etc/openwrt_release"
 NEW_DESCRIPTION="Packaged by wukongdaily"
 sed -i "s/DISTRIB_DESCRIPTION='[^']*'/DISTRIB_DESCRIPTION='$NEW_DESCRIPTION'/" "$FILE_PATH"
+
+# 若luci-app-advancedplus (进阶设置)已安装 则去除zsh的调用 防止命令行报 /usb/bin/zsh: not found的提示
+if opkg list-installed | grep -q '^luci-app-advancedplus '; then
+    sed -i '/\/usr\/bin\/zsh/d' /etc/profile
+    sed -i '/\/bin\/zsh/d' /etc/init.d/advancedplus
+    sed -i '/\/usr\/bin\/zsh/d' /etc/init.d/advancedplus
+fi
 
 exit 0
